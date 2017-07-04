@@ -13,13 +13,19 @@ Not yet debugged.
 import os
 import sys
 #import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+#import matplotlib.pyplot as plt
+#import matplotlib.cm as cm
 import tensorflow as tf
 
 print("Python version    :", sys.version)
 print("TensorFlow version: ", tf.__version__)
 print("Current directory : ", os.getcwd())
+
+# For logging w/ TensorBoard
+# The /tmp directory is periodically cleaned, such as on reboot.
+# Since you probably don't want to keep these logs around forever,
+# this is a practical place to put them.
+LOGDIR = "/tmp/convLSTM/"
 
 IM_SZ_LEN = 64 # For later experiments, increase size as necessary
 IM_SZ_WID = 64
@@ -68,30 +74,30 @@ with graph.as_default():
     # Variable (wt) definitions. Only variables can be trained.
     # Naming conventions follow *Deep Learning*, Goodfellow et al, 2016.
     # input update
-    U  = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1))
-    W  = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1))
-    B  = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]))
+    U  = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="U")
+    W  = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="W")
+    B  = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="B")
     B  = tf.expand_dims(B, 0)
     B  = tf.expand_dims(B, -1)
 
     # input gate (g_gate): input, prev output, bias
-    Ug = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1))
-    Wg = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1))
-    Bg = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]))
+    Ug = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="Ug")
+    Wg = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="Wg")
+    Bg = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="Bg")
     Bg  = tf.expand_dims(Bg, 0)
     Bg  = tf.expand_dims(Bg, -1)
 
     # forget gate (f_gate): input, prev output, bias
-    Uf = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1))
-    Wf = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1))
-    Bf = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]))
+    Uf = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="Uf")
+    Wf = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="Wf")
+    Bf = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="Bf")
     Bf  = tf.expand_dims(Bf, 0)
     Bf  = tf.expand_dims(Bf, -1)
 
     # output gate (q_gate): input, prev output, bias
-    Uo = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1))
-    Wo = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1))
-    Bo = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]))
+    Uo = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="Uo")
+    Wo = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="Wo")
+    Bo = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="Bo")
     Bo  = tf.expand_dims(Bo, 0)
     Bo  = tf.expand_dims(Bo, -1)
   
@@ -131,21 +137,22 @@ with graph.as_default():
                      s  :  current state    (tensor: [1, 64, 64, 1])
                      h  :  current output   (tensor: [1, 64, 64, 1])
         """
-        inp = tf.sigmoid(tf.nn.conv2d(err_inp, U, [1, 1, 1, 1], padding='SAME')
+        with tf.name_scope("LSTM"):
+          inp = tf.sigmoid(tf.nn.conv2d(err_inp, U, [1, 1, 1, 1], padding='SAME')
                          + tf.nn.conv2d(prev_h, W, [1, 1, 1, 1], padding='SAME')
-                         + B)
-        g_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Ug, [1, 1, 1, 1], padding='SAME')
+                         + B, name="inp")
+          g_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Ug, [1, 1, 1, 1], padding='SAME')
                             + tf.nn.conv2d(prev_h, Wg, [1, 1, 1, 1], padding='SAME')
-                            + Bg)  # i_gate
-        f_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Uf, [1, 1, 1, 1], padding='SAME')
+                            + Bg, name="g_gate")  # i_gate is more common name
+          f_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Uf, [1, 1, 1, 1], padding='SAME')
                             + tf.nn.conv2d(prev_h, Wg, [1, 1, 1, 1], padding='SAME')
-                            + Bf)
-        q_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Uo, [1, 1, 1, 1], padding='SAME')
+                            + Bf, name="f_gate")
+          q_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Uo, [1, 1, 1, 1], padding='SAME')
                             + tf.nn.conv2d(prev_h, Wo, [1, 1, 1, 1], padding='SAME')
-                            + Bo)  # o_gate
-        s = tf.multiply(f_gate, prev_s) + tf.multiply(g_gate, inp)
-        h = tf.multiply(q_gate, tf.tanh(s)) # Also try logsig or relu
-        return s, h
+                            + Bo, name="q_gate")  # o_gate is more common name
+          s = tf.add(tf.multiply(f_gate, prev_s), tf.multiply(g_gate, inp), name="state")
+          h = tf.multiply(q_gate, tf.tanh(s), name="output") # Also try logsig or relu
+          return s, h
 
     # errorModule doesn't use variables, so doesn't undergo training
     def errorModule(image, predict):
@@ -157,19 +164,21 @@ with graph.as_default():
             Returns:
                 tf.stack(err1, err2)          (tensor: [1, 64, 64, 2])
         """
-        err1     = tf.nn.relu(image - predict)
-        err2     = tf.nn.relu(predict - image)
-        tensor5D = tf.stack([err1, err2], axis=3)
-        tensor4D = tf.reshape(tensor5D, [1, IM_SZ_LEN, IM_SZ_WID, 2])
-        return tensor4D
+        with tf.name_scope("ErrMod"):
+          err1     = tf.nn.relu(image - predict, name="E1")
+          err2     = tf.nn.relu(predict - image, name="E2")
+          tensor5D = tf.stack([err1, err2], axis=3)
+          tensor4D = tf.reshape(tensor5D, [1, IM_SZ_LEN, IM_SZ_WID, 2], name="PrdErr")
+          return tensor4D
     
     # Build LSTM
     lstm_state  = initial_lstm_state
     lstm_output = initial_lstm_output
     err_input   = initial_err_input
-    for _ in range(NUM_UNROLLINGS): # three unrollings
-        lstm_state, lstm_output = convLstmLayer(err_input, lstm_state, lstm_output)
-        err_input               = errorModule(image, lstm_output)
+    with tf.name_scope("full_model"):
+        for _ in range(NUM_UNROLLINGS): # three unrollings
+            lstm_state, lstm_output = convLstmLayer(err_input, lstm_state, lstm_output)
+            err_input               = errorModule(image, lstm_output)
 
     # "prediction" is always lstm_output
 #    error_module_output = errorModule(x, lstm_output)
@@ -180,6 +189,13 @@ with graph.as_default():
 # Start training
 with tf.Session(graph=graph) as sess:
     tf.global_variables_initializer().run()
+    
+    # Create graph summary
+    # Use a different log file each time you run the program.
+    writer = tf.summary.FileWriter(LOGDIR + "1")
+    writer.add_graph(sess.graph)
+    summ = tf.summary.merge_all()
+
     print("Shape of image: ", tf.shape(image).eval())
     print("Rank of  image: ", tf.rank(image).eval())
     print("Size of  image: ", tf.size(image).eval())
