@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 28 21:22:59 2017
+Last modified: Wed July 6, 2017
 
 @author: maida
 
@@ -30,9 +31,9 @@ LOGDIR = "/tmp/convLSTM/"
 IM_SZ_LEN = 64 # For later experiments, increase size as necessary
 IM_SZ_WID = 64
 BATCH_SZ  = 1
-NUM_UNROLLINGS = 3
+NUM_UNROLLINGS = 2   # increase to 3 after debugging
 LEARNING_RATE  = 0.1 # long story, may need simulated anealing
-NUM_TRAINING_STEPS = 101
+NUM_TRAINING_STEPS = 11
 
 #model = tf.Graph()
 #with model.as_default():
@@ -151,8 +152,8 @@ with graph.as_default():
                             + tf.nn.conv2d(prev_h, Wo, [1, 1, 1, 1], padding='SAME')
                             + Bo, name="q_gate")  # o_gate is more common name
           s = tf.add(tf.multiply(f_gate, prev_s), tf.multiply(g_gate, inp), name="state")
-          h = tf.multiply(q_gate, tf.tanh(s), name="output") # Also try logsig or relu
-          return s, h
+          h = tf.multiply(q_gate, tf.sigmoid(s), name="output") # Also try relu
+          return s, h       # normally above is tanh
 
     # errorModule doesn't use variables, so doesn't undergo training
     def errorModule(image, predict):
@@ -162,7 +163,7 @@ with graph.as_default():
                 image:   target image         (tensor: [1, 64, 64, 1])
                 predict: predicted image      (tensor: [1, 64, 64, 1])
             Returns:
-                tf.stack(err1, err2)          (tensor: [1, 64, 64, 2])
+                tensor4D: Errs packed in 2 channels. (tensor: [1, 64, 64, 2])
         """
         with tf.name_scope("ErrMod"):
           err1     = tf.nn.relu(image - predict, name="E1")
@@ -185,6 +186,23 @@ with graph.as_default():
     
     loss = tf.reduce_sum(err_input) # sums the values across each component of the tensor
     optimizer = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
+    with tf.name_scope("initializations"):
+        tf.summary.image("initial_lstm_state", initial_lstm_state, 3)
+        tf.summary.image("initial_lstm_output", initial_lstm_output, 3)
+        tf.summary.image("initial_error1", 
+                         tf.slice(initial_err_input, [0,0,0,0], [1, 64, 64, 1]), 3)
+        tf.summary.image("initial_error2",
+                         tf.slice(initial_err_input, [0,0,0,1], [1, 64, 64, 1]), 3)
+    with tf.name_scope("input"):
+        tf.summary.image("image", image, 3)
+    with tf.name_scope("lstm"):
+        tf.summary.image("lstm_out", lstm_output, 3)
+        tf.summary.image("lstm_state", lstm_state, 3)
+    with tf.name_scope("error"):
+        tf.summary.image("perror_1", 
+                         tf.slice(err_input, [0,0,0,0], [1, 64, 64, 1]), 3)
+        tf.summary.image("perror_2", 
+                         tf.slice(err_input, [0,0,0,1], [1, 64, 64, 1]), 3)
 
 # Start training
 with tf.Session(graph=graph) as sess:
@@ -192,9 +210,9 @@ with tf.Session(graph=graph) as sess:
     
     # Create graph summary
     # Use a different log file each time you run the program.
-    writer = tf.summary.FileWriter(LOGDIR + "1")
+    msumm = tf.summary.merge_all()
+    writer = tf.summary.FileWriter(LOGDIR + "1") # += 1 for each run till /tmp is cleard
     writer.add_graph(sess.graph)
-    summ = tf.summary.merge_all()
 
     print("Shape of image: ", tf.shape(image).eval())
     print("Rank of  image: ", tf.rank(image).eval())
@@ -223,13 +241,18 @@ with tf.Session(graph=graph) as sess:
     print("Shape of err_input: ", tf.shape(err_input).eval())
     print("Rank of  err_input: ", tf.rank(err_input).eval())
     print("Size of  err_input: ", tf.size(err_input).eval())
+
+# Below would only used to test if the input makes sense
 #    output = sess.run(image)
 
-#    for step in range(NUM_TRAINING_STEPS): # 0 to 100
-#        _, l, predictions = sess.run([optimizer, loss, lstm_output])
-#        
-#        print("Step: ", step)
-#        print("Loss: ", l)
+    for step in range(NUM_TRAINING_STEPS): # 0 to 100
+        if step % 1 == 0:
+            ms = sess.run(msumm)
+            writer.add_summary(ms, step)
+        _, l, predictions = sess.run([optimizer, loss, lstm_output])
+        
+        print("Step: ", step)
+        print("Loss: ", l)
 
 
 
