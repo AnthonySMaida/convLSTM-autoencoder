@@ -32,8 +32,8 @@ IM_SZ_LEN = 64 # For later experiments, increase size as necessary
 IM_SZ_WID = 64
 BATCH_SZ  = 1
 NUM_UNROLLINGS = 2   # increase to 3 after debugging
-LEARNING_RATE  = 0.1 # long story, may need simulated anealing
-NUM_TRAINING_STEPS = 11
+#LEARNING_RATE  = 0.1 # long story, may need simulated anealing
+NUM_TRAINING_STEPS = 1201
 
 #model = tf.Graph()
 #with model.as_default():
@@ -183,9 +183,20 @@ with graph.as_default():
 
     # "prediction" is always lstm_output
 #    error_module_output = errorModule(x, lstm_output)
-    
+
+    #New optimizer block, uses exp decay on learning rate, added clip_by_global_norm
     loss = tf.reduce_sum(err_input) # sums the values across each component of the tensor
-    optimizer = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
+    global_step = tf.Variable(0)
+
+    #learning rate starts at 10, decreases by 90% every 300 steps
+    learning_rate  = tf.train.exponential_decay(
+        10.0, global_step, 300, 0.1, staircase=True, name='LearningRate')
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    gradients, v = zip(*optimizer.compute_gradients(loss))
+    gradients, _ = tf.clip_by_global_norm(gradients,1.25)
+    optimizer = optimizer.apply_gradients(
+        zip(gradients,v),global_step=global_step)
+    
     with tf.name_scope("initializations"):
         tf.summary.image("initial_lstm_state", initial_lstm_state, 3)
         tf.summary.image("initial_lstm_output", initial_lstm_output, 3)
@@ -203,6 +214,9 @@ with graph.as_default():
                          tf.slice(err_input, [0,0,0,0], [1, 64, 64, 1]), 3)
         tf.summary.image("perror_2", 
                          tf.slice(err_input, [0,0,0,1], [1, 64, 64, 1]), 3)
+    with tf.name_scope('optimizer'):
+        tf.summary.scalar('loss',loss)
+        tf.summary.scalar('learning_rate',learning_rate)
 
 # Start training
 with tf.Session(graph=graph) as sess:
