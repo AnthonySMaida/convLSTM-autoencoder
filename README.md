@@ -1,5 +1,5 @@
 # convLSTM-autoencoder
-Prototype for a convolutional LSTM autoencoder, inspired by Lotter, Krieman, Cox (ICLR 2017) "Deep predictive coding
+TensorFlow prototype for a convolutional LSTM autoencoder, inspired by Lotter, Krieman, Cox (ICLR 2017) "Deep predictive coding
 networks for video prediction and unsupervised learning."
 
 Release notes:
