@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 28 21:22:59 2017
-Last modified: Wed July 6, 2017
+Last modified: Wed July 19, 2017
 
-@author: maida
+@author: maida, kirby
 
 This is a convolutional LSTM prototype for predictive coding.
 It uses a constant image for training. 
-Not yet debugged.
 """
 
 import os
@@ -19,7 +18,7 @@ import sys
 import tensorflow as tf
 
 print("Python version    :", sys.version)
-print("TensorFlow version: ", tf.__version__)
+print("TensorFlow version: ", tf.VERSION)
 print("Current directory : ", os.getcwd())
 
 # For logging w/ TensorBoard
@@ -146,7 +145,7 @@ with graph.as_default():
                             + tf.nn.conv2d(prev_h, Wg, [1, 1, 1, 1], padding='SAME')
                             + Bg, name="g_gate")  # i_gate is more common name
           f_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Uf, [1, 1, 1, 1], padding='SAME')
-                            + tf.nn.conv2d(prev_h, Wg, [1, 1, 1, 1], padding='SAME')
+                            + tf.nn.conv2d(prev_h, Wf, [1, 1, 1, 1], padding='SAME')
                             + Bf, name="f_gate")
           q_gate = tf.sigmoid(tf.nn.conv2d(err_inp, Uo, [1, 1, 1, 1], padding='SAME')
                             + tf.nn.conv2d(prev_h, Wo, [1, 1, 1, 1], padding='SAME')
