@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 28 21:22:59 2017
-Last modified: Wed July 19, 2017
+Last modified: Wed July 23, 2017
 
 @author: maida, kirby
 
@@ -33,33 +33,6 @@ BATCH_SZ  = 1
 NUM_UNROLLINGS = 2   # increase to 3 after debugging
 #LEARNING_RATE  = 0.1 # long story, may need simulated anealing
 NUM_TRAINING_STEPS = 1201
-
-#model = tf.Graph()
-#with model.as_default():
-#    file_contents = tf.read_file('image_0004_leafCropped.jpg')
-#    image         = tf.image.decode_jpeg(file_contents)
-#    image         = tf.image.rgb_to_grayscale(image) # Input to the LSTM !!!
-#    image         = tf.image.resize_images(image, [IM_SZ_LEN, IM_SZ_WID])
-#    image         = tf.expand_dims(image, 0)
-#    image         = (1/255.0) * image                # normalize to range 0-1
-#    print("Shape of image: ", tf.shape(image))
-#    print("Rank of  image: ", tf.rank(image))
-#    print("Size of  image: ", tf.size(image))
-#
-#with tf.Session(graph=model) as sess:
-#    print("Shape of image: ", tf.shape(image).eval())
-#    print("Rank of  image: ", tf.rank(image).eval())
-#    print("Size of  image: ", tf.size(image).eval())
-#    output = sess.run(image)
-#    
-#
-#print('Output shape after run() evaluation: ', output.shape)
-#output.resize((IM_SZ_LEN, IM_SZ_WID))
-#print('Resized for plt.imshow() :', output.shape)
-#print('Print some matrix values to show it is grayscale.')
-#print(output)
-#print('Display the grayscale image.')
-#plt.imshow(output, cmap = cm.Greys_r)
    
 graph = tf.Graph()
 with graph.as_default():
@@ -69,6 +42,7 @@ with graph.as_default():
     image         = tf.image.rgb_to_grayscale(image) # Input to the LSTM !!!
     image         = tf.image.resize_images(image, [IM_SZ_LEN, IM_SZ_WID])
     image         = tf.expand_dims(image, 0)
+    # input to error module
     image         = (1/255.0) * image                # normalize to range 0-1
 
     # Variable (wt) definitions. Only variables can be trained.
@@ -77,6 +51,7 @@ with graph.as_default():
     U  = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="U")
     W  = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="W")
     B  = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="B")
+    # increase tensor rand from 2D to 4D: [1, IM_SZ_LEN, IM_SZ_WID, 1]
     B  = tf.expand_dims(B, 0)
     B  = tf.expand_dims(B, -1)
 
@@ -106,9 +81,7 @@ with graph.as_default():
            Returns a new 4D tensor with shape [1, 64, 64, 1].
            All elements are initialized to zero.
         """
-        emptyTensor = tf.zeros([IM_SZ_LEN, IM_SZ_WID])
-        emptyTensor = tf.expand_dims(emptyTensor, 0)
-        emptyTensor = tf.expand_dims(emptyTensor, -1)
+        emptyTensor = tf.zeros([1, IM_SZ_LEN, IM_SZ_WID, 1])
         return emptyTensor
     
     def newEmpty4Dtensor_2channels():
@@ -116,8 +89,7 @@ with graph.as_default():
            Returns a new 4D tensor with shape [1, 64, 64, 2].
            All elements are initialized to zero.
         """
-        emptyTensor = tf.zeros([IM_SZ_LEN, IM_SZ_WID, 2])
-        emptyTensor = tf.expand_dims(emptyTensor, 0)
+        emptyTensor = tf.zeros([1, IM_SZ_LEN, IM_SZ_WID, 2])
         return emptyTensor
     
     # create some initializations
@@ -224,7 +196,7 @@ with tf.Session(graph=graph) as sess:
     # Create graph summary
     # Use a different log file each time you run the program.
     msumm = tf.summary.merge_all()
-    writer = tf.summary.FileWriter(LOGDIR + "1") # += 1 for each run till /tmp is cleard
+    writer = tf.summary.FileWriter(LOGDIR + "2") # += 1 for each run till /tmp is cleard
     writer.add_graph(sess.graph)
 
     print("Shape of image: ", tf.shape(image).eval())
@@ -260,7 +232,7 @@ with tf.Session(graph=graph) as sess:
 
     for step in range(NUM_TRAINING_STEPS): # 0 to 100
         if step % 1 == 0:
-            ms = sess.run(msumm)
+            ms = sess.run(msumm) # merge summary
             writer.add_summary(ms, step)
         _, l, predictions = sess.run([optimizer, loss, lstm_output])
         
