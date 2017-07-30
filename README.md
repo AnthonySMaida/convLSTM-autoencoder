@@ -12,6 +12,6 @@ Release notes before July 30:
 July 30 release notes:
 - ZK added tensorboard visualization of weight matrices.
 - Added random number seeds to weight initializations so simulation runs are reproducible. Change seeds to change initialization.
-- Found that the newly added tensorboard weight matrix visualizations were for some unknown reason erratic and unreliable. Additionally, noticed that visualization of the output gate weights suggested that there was no learning in this weight set at all. What really happened is that learning rescaled the weight values approximately equally and the color map re-normalization made it look like the weight values were not changing.
+- Found that the newly added tensorboard weight matrix visualizations were for some unknown reason erratic and unreliable. Additionally, noticed that visualization of the output gate weights suggested that there was no learning in this weight set at all. What really happened was that learning rescaled the weight values approximately equally and the color map re-normalization made it look like the weight values were not changing.
 - Because of the above issue, added before-and-after training weight plots and printouts using matplotlib.
 - Still need to add weight histogram and distribution plots for tensorboard.
