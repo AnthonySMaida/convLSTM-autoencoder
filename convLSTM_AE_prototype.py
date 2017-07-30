@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 28 21:22:59 2017
-Last modified: Wed July 23, 2017
+Last modified: Wed July 29, 2017
 
 @author: maida, kirby
 
@@ -12,9 +12,9 @@ It uses a constant image for training.
 
 import os
 import sys
-#import numpy as np
-#import matplotlib.pyplot as plt
-#import matplotlib.cm as cm
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import tensorflow as tf
 
 print("Python version    :", sys.version)
@@ -32,7 +32,8 @@ IM_SZ_WID = 64
 BATCH_SZ  = 1
 NUM_UNROLLINGS = 2   # increase to 3 after debugging
 #LEARNING_RATE  = 0.1 # long story, may need simulated anealing
-NUM_TRAINING_STEPS = 1201
+NUM_TRAINING_STEPS = 11
+#NUM_TRAINING_STEPS = 1201
    
 graph = tf.Graph()
 with graph.as_default():
@@ -48,33 +49,29 @@ with graph.as_default():
     # Variable (wt) definitions. Only variables can be trained.
     # Naming conventions follow *Deep Learning*, Goodfellow et al, 2016.
     # input update
-    U  = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="U")
-    W  = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="W")
-    B  = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="B")
-    # increase tensor rand from 2D to 4D: [1, IM_SZ_LEN, IM_SZ_WID, 1]
-    B  = tf.expand_dims(B, 0)
-    B  = tf.expand_dims(B, -1)
+    # Using seeds to get repeatable results FOR DEBUGGING ONLY.
+    with tf.name_scope('Input_Update_Weights'):
+        U  = tf.Variable(tf.truncated_normal([5, 5, 2, 1], mean=-0.1, stddev=0.1, seed=1), name="U")
+        W  = tf.Variable(tf.truncated_normal([5, 5, 1, 1], mean=-0.1, stddev=0.1, seed=2), name="W")
+        B  = tf.Variable(tf.ones([1, IM_SZ_LEN, IM_SZ_WID,1 ]),                            name="B")
 
     # input gate (g_gate): input, prev output, bias
-    Ug = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="Ug")
-    Wg = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="Wg")
-    Bg = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="Bg")
-    Bg  = tf.expand_dims(Bg, 0)
-    Bg  = tf.expand_dims(Bg, -1)
+    with tf.name_scope('Input_Gate_Weights'):
+        Ug = tf.Variable(tf.truncated_normal([5, 5, 2, 1], mean=-0.1, stddev=0.1, seed=3), name="Ug")
+        Wg = tf.Variable(tf.truncated_normal([5, 5, 1, 1], mean=-0.1, stddev=0.1, seed=4), name="Wg")
+        Bg = tf.Variable(tf.ones([1, IM_SZ_LEN, IM_SZ_WID,1 ]),                            name="Bg")
 
     # forget gate (f_gate): input, prev output, bias
-    Uf = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="Uf")
-    Wf = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="Wf")
-    Bf = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="Bf")
-    Bf  = tf.expand_dims(Bf, 0)
-    Bf  = tf.expand_dims(Bf, -1)
+    with tf.name_scope('Forget_Gate_Weights'):
+        Uf = tf.Variable(tf.truncated_normal([5, 5, 2, 1], mean=-0.1, stddev=0.1, seed=5), name="Uf")
+        Wf = tf.Variable(tf.truncated_normal([5, 5, 1, 1], mean=-0.1, stddev=0.1, seed=6), name="Wf")
+        Bf = tf.Variable(tf.ones([1, IM_SZ_LEN, IM_SZ_WID, 1]),                            name="Bf")
 
     # output gate (q_gate): input, prev output, bias
-    Uo = tf.Variable(tf.truncated_normal([5, 5, 2, 1], -0.1, 0.1), name="Uo")
-    Wo = tf.Variable(tf.truncated_normal([5, 5, 1, 1], -0.1, 0.1), name="Wo")
-    Bo = tf.Variable(tf.ones([IM_SZ_LEN, IM_SZ_WID]),              name="Bo")
-    Bo  = tf.expand_dims(Bo, 0)
-    Bo  = tf.expand_dims(Bo, -1)
+    with tf.name_scope('Output_Gate_Weights'):
+        Uo = tf.Variable(tf.truncated_normal([5, 5, 2, 1], mean=-0.1, stddev=0.1, seed=7), name="Uo")
+        Wo = tf.Variable(tf.truncated_normal([5, 5, 1, 1], mean=-0.1, stddev=0.1, seed=8), name="Wo")
+        Bo = tf.Variable(tf.ones([1, IM_SZ_LEN, IM_SZ_WID, 1]),                            name="Bo")
   
     def newEmpty4Dtensor_1channel():
         """
@@ -175,19 +172,84 @@ with graph.as_default():
                          tf.slice(initial_err_input, [0,0,0,0], [1, 64, 64, 1]), 3)
         tf.summary.image("initial_error2",
                          tf.slice(initial_err_input, [0,0,0,1], [1, 64, 64, 1]), 3)
+        
     with tf.name_scope("input"):
         tf.summary.image("image", image, 3)
+        
     with tf.name_scope("lstm"):
         tf.summary.image("lstm_out", lstm_output, 3)
         tf.summary.image("lstm_state", lstm_state, 3)
+        
     with tf.name_scope("error"):
         tf.summary.image("perror_1", 
                          tf.slice(err_input, [0,0,0,0], [1, 64, 64, 1]), 3)
         tf.summary.image("perror_2", 
                          tf.slice(err_input, [0,0,0,1], [1, 64, 64, 1]), 3)
+        
     with tf.name_scope('optimizer'):
         tf.summary.scalar('loss',loss)
         tf.summary.scalar('learning_rate',learning_rate)
+
+    with tf.name_scope('weights'):
+        with tf.name_scope('1_input_update'):
+            newU1 = tf.slice(U,[0,0,0,0],[5,5,1,1])
+            newU2 = tf.slice(U,[0,0,1,0],[5,5,1,1])
+            newW = tf.slice(W,[0,0,0,0],[5,5,1,1])
+            newU1 = tf.squeeze(newU1)     #now a viewable [5x5] matrix
+            newU2 = tf.squeeze(newU2)
+            newW = tf.squeeze(newW)
+            newU1 = tf.reshape(newU1,[1,5,5,1])
+            newU2 = tf.reshape(newU2,[1,5,5,1])
+            newW = tf.reshape(newW,[1,5,5,1])
+            tf.summary.image('U1', newU1)
+            tf.summary.image('U2', newU2)
+            tf.summary.image('W', newW)
+            tf.summary.image('B', B)
+            
+        with tf.name_scope('2_input_gate'):
+            newUg1 = tf.slice(Ug,[0,0,0,0],[5,5,1,1])
+            newUg2 = tf.slice(Ug,[0,0,1,0],[5,5,1,1])
+            newWg = tf.slice(Wg,[0,0,0,0],[5,5,1,1])
+            newUg1 = tf.squeeze(newUg1)     #now a viewable [5x5] matrix
+            newUg2 = tf.squeeze(newUg2)
+            newWg = tf.squeeze(newWg)
+            newUg1 = tf.reshape(newUg1,[1,5,5,1])
+            newUg2 = tf.reshape(newUg2,[1,5,5,1])
+            newWg = tf.reshape(newWg,[1,5,5,1])
+            tf.summary.image('Ug1', newUg1)
+            tf.summary.image('Ug2', newUg2)
+            tf.summary.image('Wg', newWg)
+            tf.summary.image('Bg', Bg)
+
+        with tf.name_scope('3_forget_gate'):
+            newUf1 = tf.slice(Uf,[0,0,0,0],[5,5,1,1])
+            newUf2 = tf.slice(Uf,[0,0,1,0],[5,5,1,1])
+            newWf = tf.slice(Wf,[0,0,0,0],[5,5,1,1])
+            newUf1 = tf.squeeze(newUf1)     #now a viewable [5x5] matrix
+            newUf2 = tf.squeeze(newUf2)
+            newWf = tf.squeeze(newWf)
+            newUf1 = tf.reshape(newUf1,[1,5,5,1])
+            newUf2 = tf.reshape(newUf2,[1,5,5,1])
+            newWf = tf.reshape(newWf,[1,5,5,1])
+            tf.summary.image('Uf1', newUf1)
+            tf.summary.image('Uf2', newUf2)
+            tf.summary.image('Wf', newWf)
+            tf.summary.image('Bf', Bf)
+        
+        with tf.name_scope('4_output_gate'):
+            newUo1 = tf.slice(Uo,[0,0,0,0],[5,5,1,1])
+            newUo2 = tf.slice(Uo,[0,0,1,0],[5,5,1,1])
+            newWo = tf.slice(Wo,[0,0,0,0],[5,5,1,1])
+            newUo1 = tf.squeeze(newUo1)     #now a viewable [5x5] matrix
+            newUo2 = tf.squeeze(newUo2)
+            newWo = tf.squeeze(newWo)
+            newUo1 = tf.reshape(newUo1,[1,5,5,1])
+            newUo2 = tf.reshape(newUo2,[1,5,5,1])
+            newWo = tf.reshape(newWo,[1,5,5,1])
+            tf.summary.image('Uo1', newUo1)
+            tf.summary.image('Uo2', newUo2)
+            tf.summary.image('Wo', newWo)
+            tf.summary.image('Bo', Bo)
 
 # Start training
 with tf.Session(graph=graph) as sess:
@@ -196,7 +258,7 @@ with tf.Session(graph=graph) as sess:
     # Create graph summary
     # Use a different log file each time you run the program.
     msumm = tf.summary.merge_all()
-    writer = tf.summary.FileWriter(LOGDIR + "2") # += 1 for each run till /tmp is cleard
+    writer = tf.summary.FileWriter(LOGDIR + "1") # += 1 for each run till /tmp is cleard
     writer.add_graph(sess.graph)
 
     print("Shape of image: ", tf.shape(image).eval())
@@ -226,20 +288,150 @@ with tf.Session(graph=graph) as sess:
     print("Shape of err_input: ", tf.shape(err_input).eval())
     print("Rank of  err_input: ", tf.rank(err_input).eval())
     print("Size of  err_input: ", tf.size(err_input).eval())
+    
+    # Initial values of input-update wts.
+    # save for plotting later
+    Wts_array_initial = []
+    Wts_array_initial.append(tf.squeeze(newU1).eval())
+    Wts_array_initial.append(tf.squeeze(newU2).eval())
+    Wts_array_initial.append(tf.squeeze(newW).eval())
+
+    # Initial values of input-gate (g-gate) wts.
+    gWts_array_initial = []
+    gWts_array_initial.append(tf.squeeze(newUg1).eval())
+    gWts_array_initial.append(tf.squeeze(newUg2).eval())
+    gWts_array_initial.append(tf.squeeze(newWg).eval())
+
+    # Initial values of forget-gate wts.
+    fWts_array_initial = []
+    fWts_array_initial.append(tf.squeeze(newUf1).eval())
+    fWts_array_initial.append(tf.squeeze(newUf2).eval())
+    fWts_array_initial.append(tf.squeeze(newWf).eval())
+    
+    # Initial values of output-gate (q-gate) wts.
+    oWts_array_initial = []
+    oWts_array_initial.append(tf.squeeze(newUo1).eval())
+    oWts_array_initial.append(tf.squeeze(newUo2).eval())
+    oWts_array_initial.append(tf.squeeze(newWo).eval())
 
 # Below would only used to test if the input makes sense
 #    output = sess.run(image)
 
     for step in range(NUM_TRAINING_STEPS): # 0 to 100
+        _, l, predictions = sess.run([optimizer, loss, lstm_output])
         if step % 1 == 0:
             ms = sess.run(msumm) # merge summary
             writer.add_summary(ms, step)
-        _, l, predictions = sess.run([optimizer, loss, lstm_output])
         
         print("Step: ", step)
-        print("Loss: ", l)
+        print("Loss: ", loss.eval())
+        print("New Loss: ", l)
+        
+    # Input-update weights
+    print("Initial U1 wts: \n", Wts_array_initial[0])
+    print("Initial U2 wts: \n", Wts_array_initial[1])
+    print("Initial W  wts: \n", Wts_array_initial[2])
+    Wts_array_final = []
+    Wts_array_final.append(tf.squeeze(newU1).eval())
+    Wts_array_final.append(tf.squeeze(newU2).eval())
+    Wts_array_final.append(tf.squeeze(newW).eval())
+    print("Final U1 wts: \n", Wts_array_final[0])
+    print("Final U2 wts: \n", Wts_array_final[1])
+    print("Final W wts:  \n", Wts_array_final[2])
+    f, axarr = plt.subplots(2, 3)
+    axarr[0, 0].imshow(Wts_array_initial[0], cmap=cm.Greys_r)
+    axarr[0, 1].imshow(Wts_array_initial[1], cmap=cm.Greys_r)
+    axarr[0, 2].imshow(Wts_array_initial[2], cmap=cm.Greys_r)
+    axarr[1, 0].imshow(Wts_array_final[0], cmap=cm.Greys_r)
+    axarr[1, 1].imshow(Wts_array_final[1], cmap=cm.Greys_r)
+    axarr[1, 2].imshow(Wts_array_final[2], cmap=cm.Greys_r)
+    axarr[0,0].set_title('init U1')
+    axarr[0,1].set_title('init U2')
+    axarr[0,2].set_title('init W')
+    axarr[1,0].set_title('final U1')
+    axarr[1,1].set_title('final U2')
+    axarr[1,2].set_title('final W')
+    plt.show()
 
+    
+    # G-gate weights (input gate)
+    print("Initial Ug1 wts: \n", gWts_array_initial[0])
+    print("Initial Ug2 wts: \n", gWts_array_initial[1])
+    print("Initial Wg  wts: \n", gWts_array_initial[2])
+    gWts_array_final = []
+    gWts_array_final.append(tf.squeeze(newUg1).eval())
+    gWts_array_final.append(tf.squeeze(newUg2).eval())
+    gWts_array_final.append(tf.squeeze(newWg).eval())
+    print("Final Ug1 wts: \n", gWts_array_final[0])
+    print("Final Ug2 wts: \n", gWts_array_final[1])
+    print("Final Wg wts:  \n", gWts_array_final[2])
+    f, axarr = plt.subplots(2, 3)
+    axarr[0, 0].imshow(gWts_array_initial[0], cmap=cm.Greys_r)
+    axarr[0, 1].imshow(gWts_array_initial[1], cmap=cm.Greys_r)
+    axarr[0, 2].imshow(gWts_array_initial[2], cmap=cm.Greys_r)
+    axarr[1, 0].imshow(gWts_array_final[0], cmap=cm.Greys_r)
+    axarr[1, 1].imshow(gWts_array_final[1], cmap=cm.Greys_r)
+    axarr[1, 2].imshow(gWts_array_final[2], cmap=cm.Greys_r)
+    axarr[0,0].set_title('init Ug1')
+    axarr[0,1].set_title('init Ug2')
+    axarr[0,2].set_title('init Wg')
+    axarr[1,0].set_title('final Ug1')
+    axarr[1,1].set_title('final Ug2')
+    axarr[1,2].set_title('final Wg')
+    plt.show()
 
+    # F-gate weights
+    print("Initial Uf1 wts: \n", fWts_array_initial[0])
+    print("Initial Uf2 wts: \n", fWts_array_initial[1])
+    print("Initial Wf  wts: \n", fWts_array_initial[2])
+    fWts_array_final = []
+    fWts_array_final.append(tf.squeeze(newUf1).eval())
+    fWts_array_final.append(tf.squeeze(newUf2).eval())
+    fWts_array_final.append(tf.squeeze(newWf).eval())
+    print("Final Uf1 wts: \n", fWts_array_final[0])
+    print("Final Uf2 wts: \n", fWts_array_final[1])
+    print("Final Wf  wts: \n", fWts_array_final[2])
+    f, axarr = plt.subplots(2, 3)
+    axarr[0, 0].imshow(fWts_array_initial[0], cmap=cm.Greys_r)
+    axarr[0, 1].imshow(fWts_array_initial[1], cmap=cm.Greys_r)
+    axarr[0, 2].imshow(fWts_array_initial[2], cmap=cm.Greys_r)
+    axarr[1, 0].imshow(fWts_array_final[0],   cmap=cm.Greys_r)
+    axarr[1, 1].imshow(fWts_array_final[1],   cmap=cm.Greys_r)
+    axarr[1, 2].imshow(fWts_array_final[2],   cmap=cm.Greys_r)
+    axarr[0,0].set_title('init Uf1')
+    axarr[0,1].set_title('init Uf2')
+    axarr[0,2].set_title('init Wf')
+    axarr[1,0].set_title('final Uf1')
+    axarr[1,1].set_title('final Uf2')
+    axarr[1,2].set_title('final Wf')
+    plt.show()
+    
+    # Q-gate weights (output gate)
+    print("Initial Uo1 wts: \n", oWts_array_initial[0])
+    print("Initial Uo2 wts: \n", oWts_array_initial[1])
+    print("Initial Wo  wts: \n", oWts_array_initial[2])
+    oWts_array_final = []
+    oWts_array_final.append(tf.squeeze(newUo1).eval())
+    oWts_array_final.append(tf.squeeze(newUo2).eval())
+    oWts_array_final.append(tf.squeeze(newWo).eval())
+    print("Final Uo1 wts: \n", oWts_array_final[0])
+    print("Final Uo2 wts: \n", oWts_array_final[1])
+    print("Final Wo  wts: \n", oWts_array_final[2])
+    f, axarr = plt.subplots(2, 3)
+    axarr[0, 0].imshow(oWts_array_initial[0], cmap=cm.Greys_r)
+    axarr[0, 1].imshow(oWts_array_initial[1], cmap=cm.Greys_r)
+    axarr[0, 2].imshow(oWts_array_initial[2], cmap=cm.Greys_r)
+    axarr[1, 0].imshow(oWts_array_final[0], cmap=cm.Greys_r)
+    axarr[1, 1].imshow(oWts_array_final[1], cmap=cm.Greys_r)
+    axarr[1, 2].imshow(oWts_array_final[2], cmap=cm.Greys_r)
+    axarr[0,0].set_title('init Uo1')
+    axarr[0,1].set_title('init Uo2')
+    axarr[0,2].set_title('init Wo')
+    axarr[1,0].set_title('final Uo1')
+    axarr[1,1].set_title('final Uo2')
+    axarr[1,2].set_title('final Wo')
+    plt.show()
+  
 
 
 
