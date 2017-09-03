@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 28 21:22:59 2017
-Last modified: Wed July 29, 2017
+Last modified: Sept 3, 2017
 
 @author: maida, kirby
 
@@ -13,13 +13,16 @@ It uses a constant image for training.
 import os
 import sys
 import numpy as np
+import matplotlib as mpl
+from matplotlib import cm, colors
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+#import matplotlib.cm as cm
 import tensorflow as tf
 
-print("Python version    :", sys.version)
+print("Python version    : ", sys.version)
 print("TensorFlow version: ", tf.VERSION)
 print("Current directory : ", os.getcwd())
+print("Matplotlib version: ", mpl.__version__)
 
 # For logging w/ TensorBoard
 # The /tmp directory is periodically cleaned, such as on reboot.
@@ -40,16 +43,20 @@ with graph.as_default():
     
     file_contents = tf.read_file('image_0004_leafCropped.jpg')
     image         = tf.image.decode_jpeg(file_contents)
-    image         = tf.image.rgb_to_grayscale(image) # Input to the LSTM !!!
+    image         = tf.image.rgb_to_grayscale(image) # Input to Error mod !!!
     image         = tf.image.resize_images(image, [IM_SZ_LEN, IM_SZ_WID])
-    image         = tf.expand_dims(image, 0)
+    image         = tf.expand_dims(image, 0) # inserts dimension of 1 at front
+                                             # of tensor
     # input to error module
     image         = (1/255.0) * image                # normalize to range 0-1
 
     # Variable (wt) definitions. Only variables can be trained.
     # Naming conventions follow *Deep Learning*, Goodfellow et al, 2016.
-    # input update
     # Using seeds to get repeatable results FOR DEBUGGING ONLY.
+    
+    # U wts have two channels to match output of error module.
+
+    # input update
     with tf.name_scope('Input_Update_Weights'):
         U  = tf.Variable(tf.truncated_normal([5, 5, 2, 1], mean=-0.1, stddev=0.1, seed=1), name="U")
         W  = tf.Variable(tf.truncated_normal([5, 5, 1, 1], mean=-0.1, stddev=0.1, seed=2), name="W")
@@ -338,13 +345,31 @@ with tf.Session(graph=graph) as sess:
     print("Final U1 wts: \n", Wts_array_final[0])
     print("Final U2 wts: \n", Wts_array_final[1])
     print("Final W wts:  \n", Wts_array_final[2])
+    
+    # Normalize colormap values for six arrays
+    vmin = 1e40
+    vmax = -1e40
+    for i in range(3):
+        dd = Wts_array_initial[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    for i in range(3):
+        dd = Wts_array_final[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)        
+    print("vmin = ", vmin)
+    print("vmax = ", vmax)
+    
+    cmap = cm.Greys_r
+#    cmap = cm.cool
     f, axarr = plt.subplots(2, 3)
-    axarr[0, 0].imshow(Wts_array_initial[0], cmap=cm.Greys_r)
-    axarr[0, 1].imshow(Wts_array_initial[1], cmap=cm.Greys_r)
-    axarr[0, 2].imshow(Wts_array_initial[2], cmap=cm.Greys_r)
-    axarr[1, 0].imshow(Wts_array_final[0], cmap=cm.Greys_r)
-    axarr[1, 1].imshow(Wts_array_final[1], cmap=cm.Greys_r)
-    axarr[1, 2].imshow(Wts_array_final[2], cmap=cm.Greys_r)
+    axarr[0, 0].imshow(Wts_array_initial[0], norm=norm, cmap=cmap)
+    axarr[0, 1].imshow(Wts_array_initial[1], norm=norm, cmap=cmap)
+    axarr[0, 2].imshow(Wts_array_initial[2], norm=norm, cmap=cmap)
+    axarr[1, 0].imshow(Wts_array_final[0], norm=norm, cmap=cmap)
+    axarr[1, 1].imshow(Wts_array_final[1], norm=norm, cmap=cmap)
+    axarr[1, 2].imshow(Wts_array_final[2], norm=norm, cmap=cmap)
     axarr[0,0].set_title('init U1')
     axarr[0,1].set_title('init U2')
     axarr[0,2].set_title('init W')
@@ -365,13 +390,30 @@ with tf.Session(graph=graph) as sess:
     print("Final Ug1 wts: \n", gWts_array_final[0])
     print("Final Ug2 wts: \n", gWts_array_final[1])
     print("Final Wg wts:  \n", gWts_array_final[2])
+    
+    
+    # Normalize colormap values for six arrays
+    vmin = 1e40
+    vmax = -1e40
+    for i in range(3):
+        dd = gWts_array_initial[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    for i in range(3):
+        dd = gWts_array_final[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)        
+    print("vmin = ", vmin)
+    print("vmax = ", vmax)
+
     f, axarr = plt.subplots(2, 3)
-    axarr[0, 0].imshow(gWts_array_initial[0], cmap=cm.Greys_r)
-    axarr[0, 1].imshow(gWts_array_initial[1], cmap=cm.Greys_r)
-    axarr[0, 2].imshow(gWts_array_initial[2], cmap=cm.Greys_r)
-    axarr[1, 0].imshow(gWts_array_final[0], cmap=cm.Greys_r)
-    axarr[1, 1].imshow(gWts_array_final[1], cmap=cm.Greys_r)
-    axarr[1, 2].imshow(gWts_array_final[2], cmap=cm.Greys_r)
+    axarr[0, 0].imshow(gWts_array_initial[0], norm=norm, cmap=cmap)
+    axarr[0, 1].imshow(gWts_array_initial[1], norm=norm, cmap=cmap)
+    axarr[0, 2].imshow(gWts_array_initial[2], norm=norm, cmap=cmap)
+    axarr[1, 0].imshow(gWts_array_final[0], norm=norm, cmap=cmap)
+    axarr[1, 1].imshow(gWts_array_final[1], norm=norm, cmap=cmap)
+    axarr[1, 2].imshow(gWts_array_final[2], norm=norm, cmap=cmap)
     axarr[0,0].set_title('init Ug1')
     axarr[0,1].set_title('init Ug2')
     axarr[0,2].set_title('init Wg')
@@ -391,13 +433,29 @@ with tf.Session(graph=graph) as sess:
     print("Final Uf1 wts: \n", fWts_array_final[0])
     print("Final Uf2 wts: \n", fWts_array_final[1])
     print("Final Wf  wts: \n", fWts_array_final[2])
+    
+    # Normalize colormap values for six arrays
+    vmin = 1e40
+    vmax = -1e40
+    for i in range(3):
+        dd = fWts_array_initial[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    for i in range(3):
+        dd = fWts_array_final[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)        
+    print("vmin = ", vmin)
+    print("vmax = ", vmax)
+
     f, axarr = plt.subplots(2, 3)
-    axarr[0, 0].imshow(fWts_array_initial[0], cmap=cm.Greys_r)
-    axarr[0, 1].imshow(fWts_array_initial[1], cmap=cm.Greys_r)
-    axarr[0, 2].imshow(fWts_array_initial[2], cmap=cm.Greys_r)
-    axarr[1, 0].imshow(fWts_array_final[0],   cmap=cm.Greys_r)
-    axarr[1, 1].imshow(fWts_array_final[1],   cmap=cm.Greys_r)
-    axarr[1, 2].imshow(fWts_array_final[2],   cmap=cm.Greys_r)
+    axarr[0, 0].imshow(fWts_array_initial[0], norm=norm, cmap=cmap)
+    axarr[0, 1].imshow(fWts_array_initial[1], norm=norm, cmap=cmap)
+    axarr[0, 2].imshow(fWts_array_initial[2], norm=norm, cmap=cmap)
+    axarr[1, 0].imshow(fWts_array_final[0],   norm=norm, cmap=cmap)
+    axarr[1, 1].imshow(fWts_array_final[1],   norm=norm, cmap=cmap)
+    axarr[1, 2].imshow(fWts_array_final[2],   norm=norm, cmap=cmap)
     axarr[0,0].set_title('init Uf1')
     axarr[0,1].set_title('init Uf2')
     axarr[0,2].set_title('init Wf')
@@ -417,13 +475,29 @@ with tf.Session(graph=graph) as sess:
     print("Final Uo1 wts: \n", oWts_array_final[0])
     print("Final Uo2 wts: \n", oWts_array_final[1])
     print("Final Wo  wts: \n", oWts_array_final[2])
+    
+    # Normalize colormap values for six arrays
+    vmin = 1e40
+    vmax = -1e40
+    for i in range(3):
+        dd = oWts_array_initial[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    for i in range(3):
+        dd = oWts_array_final[i].ravel()
+        vmin = min(vmin, np.min(dd))
+        vmax = max(vmax, np.max(dd))
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)        
+    print("vmin = ", vmin)
+    print("vmax = ", vmax)
+    
     f, axarr = plt.subplots(2, 3)
-    axarr[0, 0].imshow(oWts_array_initial[0], cmap=cm.Greys_r)
-    axarr[0, 1].imshow(oWts_array_initial[1], cmap=cm.Greys_r)
-    axarr[0, 2].imshow(oWts_array_initial[2], cmap=cm.Greys_r)
-    axarr[1, 0].imshow(oWts_array_final[0], cmap=cm.Greys_r)
-    axarr[1, 1].imshow(oWts_array_final[1], cmap=cm.Greys_r)
-    axarr[1, 2].imshow(oWts_array_final[2], cmap=cm.Greys_r)
+    axarr[0, 0].imshow(oWts_array_initial[0], norm=norm, cmap=cmap)
+    axarr[0, 1].imshow(oWts_array_initial[1], norm=norm, cmap=cmap)
+    axarr[0, 2].imshow(oWts_array_initial[2], norm=norm, cmap=cmap)
+    axarr[1, 0].imshow(oWts_array_final[0], norm=norm, cmap=cmap)
+    axarr[1, 1].imshow(oWts_array_final[1], norm=norm, cmap=cmap)
+    axarr[1, 2].imshow(oWts_array_final[2], norm=norm, cmap=cmap)
     axarr[0,0].set_title('init Uo1')
     axarr[0,1].set_title('init Uo2')
     axarr[0,2].set_title('init Wo')
