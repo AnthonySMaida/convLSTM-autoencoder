@@ -15,3 +15,6 @@ July 30 release notes:
 - Found that the newly added tensorboard weight matrix visualizations were for some unknown reason erratic and unreliable. Additionally, noticed that visualization of the output gate weights suggested that there was no learning in this weight set at all. What really happened was that learning rescaled the weight values approximately equally and the color map re-normalization made it look like the weight values were not changing.
 - Because of the above issue, added before-and-after training weight plots and printouts using matplotlib.
 - Still need to add weight histogram and distribution plots for tensorboard.
+
+Sept 3 release:
+- The six weight displays within a 2x3 panel are now comparable. (All six panels use same vmin and vmax)
